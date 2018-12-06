@@ -1,0 +1,272 @@
+---
+title: 'Group Project: Analysis on Internet Usage'
+author: "Ruizhe Lu"
+date: "STA130 Fall 2018"
+output:
+  ioslides_presentation:
+    incremental: yes
+
+---
+
+<!-- R setup -->
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+#install.packages("tidyverse")
+library(tidyverse)
+# library(rmarkdown)
+#install.packages("devtools")
+# devtools::install_github("cardiomoon/ggiraphExtra")
+# library(ggiraph)
+# library(ggiraphExtra)
+```
+
+
+<!-- Data  -->
+<!-- Internet -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+internetusers <- read_csv("Data/internetusers_cia2017.csv")
+internetusers <- internetusers[c(2,3)]
+colnames(internetusers) <- c("Country","Users")
+```
+<!-- Population -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+population <- read_csv("Data/population_cia2017.csv")
+population <- population[c(2,3)]
+colnames(population) <- c("Country","Population")
+```
+<!-- Internet Usage-->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+usage <- inner_join(internetusers, population) 
+usage <- mutate(usage, Percent = usage$Users / usage$Population)
+```
+<!-- Region -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+region <- read_csv("Data/world_regions.csv")
+
+```
+<!-- Democracy -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+democracy <- read_csv("Data/democracyindex2017.csv")
+democracy <- democracy [-c(21, 78, 118, 171),]
+democracy <- democracy [c(2,3,9)]
+democracy$Category <- as.factor(democracy$Category)
+democracy$Score <- as.numeric(democracy$Score)
+```
+<!-- Education -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+education <- read_csv("Data/education_cia2017.csv")
+education <- education[c(2, 3)]
+colnames(education) <- c("Country", "EduExpend")
+```
+<!-- Economy -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+gdpppp <- read_csv("Data/gdpppp_cia2017.csv")
+gdpppp <- gdpppp[c(2, 3)]
+colnames(gdpppp) <- c("Country","GDP")
+gdpppp$GDP <- as.numeric(gsub('[$,]', '', gdpppp$GDP))
+```
+<!-- Health -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+lifeexpect <- read_csv("Data/lifeexpect_cia2017.csv")
+lifeexpect <- lifeexpect[c(2,3)]
+colnames(lifeexpect) <- c("Country", "LifeExpect") 
+lifeexpect <- mutate(lifeexpect, AgeGroup = cut(lifeexpect$LifeExpect, c(50, 60, 70, 80, 90)))
+```
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+healthexpend <- read_csv("Data/healthexpend_cia2017.csv")
+healthexpend <- healthexpend[c(2,3)]
+colnames(healthexpend) <- c("Country", "HealthExpend")
+```
+
+## How to measure the internet usage of a country? {.smaller}
+
+In our study, we determine the internet usage in a country by:
+
+<center><b> Percentage of internet users in population </center></b>
+
+ <!-- Considering each country has a different popluation, -->
+
+```{r, echo=TRUE, eval=FALSE}
+usage <- inner_join(internetusers, population) %>%
+  ### <b>
+  mutate(Percent = usage$Users / usage$Population)
+  ### </b>
+```
+```{r, echo=TRUE}
+head(usage)
+```
+
+
+
+## Data Source
+
+- CIA World Fact book 2017
+  - Internet Users
+  - Population
+  
+  - GDP Per Capita
+  - Education Expenditures
+  
+
+  - Life Expectancy at birth
+  - Health Expenditures
+
+- Democracy Index 2017
+- Wikipedia: Regional Classifications
+      
+
+## Democracy on Internet Usage: Definition
+
+<!-- We want to know the if there is any relation between the internet usage of a country and its democracy. -->
+
+<b>How do measure democracy?</b>
+
+<!-- To answer this, we must have a well-defined selections of data to actually measure the democracy of a country -->
+
+Here we use the data from democracy index developed by the Economist Intelligence Unit.
+In this study, the democracy is measured by the score in the index.
+
+<!-- which is a complete evaluation of election, government functions, political participation, political culture, and civil liberties. -->
+
+After we tidy and join the data:
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+internet_demo <- inner_join(usage, democracy)
+```
+```{r, echo = TRUE}
+head(internet_demo)
+```
+<!-- you can see that here we tidy the data and cross join internet data defined by us to analyse with R, we will repeat this produre for the rest of our topics  -->
+
+## Democracy on Internet Usage: Association
+<!-- Here we analyse the relation between internet usage and democracy with linear regression model, here is a intuitive graph of it. By looking at the confidence interval, the graph suggests that there is likely a positive association between them. -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
+internet_demo %>% ggplot(aes(x=Score, y=Percent)) + geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=TRUE)
+```
+
+## Democracy on Internet Usage: Association {.smaller}
+<!-- we want to know that this association is now due toc chance, by looking at p-value of democracy score, which is really small and almost equal to 0,  we conclude that there is strong evidence of a positive association bewteen internet usage and democrary -->
+```{r}
+lm_demo <- lm(Percent ~ Score, internet_demo)
+summary(lm_demo)
+```
+
+## Democracy on Internet Usage: <br> A Closer Look
+```{r, echo=FALSE, fig.align="center"}
+internet_demo %>% ggplot(aes(x=Score, y=Percent, color=Category)) + geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=TRUE)
+```
+
+## Economy on Internet Usage: Definition
+<!-- Follow the same approach, we want to the the impact of economy on internet usage  -->
+
+In this study we will use GDP per capita to measure the economy situation of a country.
+
+After we tidy and join the data:
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+internet_econ <- inner_join(usage, gdpppp)
+```
+```{r echo = TRUE}
+head(internet_econ)
+```
+
+## Economy on Internet Usage: Association
+<!-- we can suggest that there is likely a positive association between economy and internet usage of a country by the confidence interval and the graph -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
+internet_econ %>% ggplot(aes(x=GDP, y=Percent)) + geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=TRUE)
+```
+
+## Economy on Internet Usage: Association {.smaller}
+<!-- And again, we want to know that if this association is due to chance. By looking at the p-value of GDP, in this case it is very close to 0, we conclude that there is strong evidence for a positive association bewteen the econonmy of a country and its internet usage situation -->
+```{r, echo=TRUE, fig.align="center"}
+lm_econ <- lm(Percent ~ GDP, internet_econ)
+summary(lm_econ)
+```
+
+## Education on Internet Usage: Definition
+
+
+We define the education of a country by the real expenditure (Percent GDP of education * GDP per capita) on education.
+
+We tidy and join the data, then define real expenditure.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+internet_edu <- inner_join(usage, education) %>%
+  inner_join(., gdpppp) %>%
+  mutate(RealEdu = GDP * EduExpend * 0.01)
+```
+```{r, echo=TRUE, eval=FALSE}
+mutate(RealEdu = GDP * EduExpend * 0.01)
+```
+```{r echo = TRUE}
+head(internet_edu)
+```
+
+## Education on Internet Usage: Association
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
+internet_edu %>% ggplot(aes(x=RealEdu, y=Percent)) + geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=TRUE)
+```
+
+## Education on Internet Usage: Association {.smaller}
+
+```{r}
+lm_edu <- lm(Percent ~ RealEdu, internet_edu)
+summary(lm_edu)
+```
+
+## Health on Internet Usage: Definition
+
+We will look at the real expenditure in health of the country as well as the life expectancy of its people.
+
+We tidy and join the data, and define the real expenditure in health.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+internet_health <- inner_join(usage, healthexpend) %>%
+  inner_join(., lifeexpect) %>%
+  inner_join(., gdpppp) %>%
+  mutate(RealHealth = HealthExpend * GDP * 0.01)
+internet_health <- internet_health[c(1, 4, 6, 7, 9)]
+```
+```{r, echo=TRUE, eval=FALSE}
+mutate(RealHealth = HealthExpend * GDP * 0.01)
+```
+```{r echo = TRUE}
+head(internet_health)
+```
+
+
+## Health on Internet Usage: Association {.smaller .build}
+
+```{r}
+lm_health <- lm(Percent ~ RealHealth + LifeExpect, internet_health)
+summary(lm_health)
+```
+
+## Health on Internet Usage: Association {.build}
+```{r, echo=FALSE, fig.align="center"}
+internet_health %>% ggplot(aes(x=Percent, y=RealHealth, color = LifeExpect)) + geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=TRUE)
+```
+
+<!-- ## Health on Internet Usage: Association {.build} -->
+<!-- ```{r, echo=FALSE, fig.align="center"} -->
+<!-- ggPredict(lm_health, se=TRUE) -->
+<!-- ``` -->
+
+## Health on Internet Usage: <br>A Closer look {.smaller}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
+
+internet_health %>% ggplot(aes(x=Percent, y=RealHealth, color = AgeGroup)) + geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=TRUE)
+```
+
+## Summary of Internet Usage in a country
+### Positive association with strong evidence:
+    - Democracy
+    - Economy
+    - Health 
+    - Education
+  
+### Compounding Factor: <b> Economy </b>
